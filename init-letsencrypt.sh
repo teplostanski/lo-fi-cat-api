@@ -44,15 +44,23 @@ docker compose run --rm --entrypoint "\
 
 # Функция для копирования сертификатов
 copy_certificates() {
-  if [ -f "./nginx/certbot/conf/live/$DOMAIN/fullchain.pem" ]; then
-    cp "./nginx/certbot/conf/live/$DOMAIN/fullchain.pem" "./nginx/ssl/cert.pem"
-    cp "./nginx/certbot/conf/live/$DOMAIN/privkey.pem" "./nginx/ssl/key.pem"
-    chmod 644 "./nginx/ssl/cert.pem"
-    chmod 600 "./nginx/ssl/key.pem"
+  # Ждем немного для синхронизации файлов
+  sleep 1
+  
+  # Копируем файлы используя sudo (они созданы от root)
+  echo "Копируем сертификаты..."
+  if sudo test -f "./nginx/certbot/conf/live/$DOMAIN/fullchain.pem"; then
+    sudo cp "./nginx/certbot/conf/live/$DOMAIN/fullchain.pem" "./nginx/ssl/cert.pem"
+    sudo cp "./nginx/certbot/conf/live/$DOMAIN/privkey.pem" "./nginx/ssl/key.pem"
+    sudo chmod 644 "./nginx/ssl/cert.pem"
+    sudo chmod 600 "./nginx/ssl/key.pem"
+    sudo chown $USER:$USER "./nginx/ssl/cert.pem" "./nginx/ssl/key.pem"
     echo "✅ Сертификаты скопированы"
     return 0
   else
     echo "❌ Ошибка: сертификаты не найдены"
+    echo "Проверяем доступные пути:"
+    sudo ls -la ./nginx/certbot/conf/live/ 2>/dev/null || echo "  ./nginx/certbot/conf/live/ не существует"
     return 1
   fi
 }
