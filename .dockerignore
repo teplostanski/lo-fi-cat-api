@@ -1,0 +1,12 @@
+# Игнорируем ненужные файлы при сборке Docker образа
+.git/
+.gitignore
+*.md
+README.md
+Dockerfile
+docker-compose.yml
+.dockerignore
+build.sh
+build.ps1
+songs/
+*.log

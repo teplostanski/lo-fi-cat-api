@@ -1,0 +1,60 @@
+services:
+  # Go бэкенд сервер
+  lofi-cat-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lofi-cat-backend
+    restart: unless-stopped
+    # Порт НЕ пробрасываем наружу - доступ только через Nginx
+    expose:
+      - "8090"
+    volumes:
+      - ./songs:/music:ro  # Монтируем музыку (read-only)
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8090
+    networks:
+      - lofi-cat-network
+    # Healthcheck отключен - можно включить после установки netcat в Dockerfile
+    # healthcheck:
+    #   test: ["CMD-SHELL", "nc -z localhost 8090 || exit 1"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: lofi-cat-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro  # SSL сертификаты
+      - ./nginx/certbot/conf:/etc/letsencrypt:ro
+      - ./nginx/certbot/www:/var/www/certbot:ro
+    depends_on:
+      - lofi-cat-backend
+    networks:
+      - lofi-cat-network
+
+  # Certbot для автоматического получения SSL сертификатов
+  certbot:
+    image: certbot/certbot
+    container_name: lofi-cat-certbot
+    volumes:
+      - ./nginx/certbot/conf:/etc/letsencrypt
+      - ./nginx/certbot/www:/var/www/certbot
+      - ./nginx/ssl:/etc/nginx/ssl
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet && if [ -f /etc/letsencrypt/live/api-lofi.teplostanski.me/fullchain.pem ]; then cp /etc/letsencrypt/live/api-lofi.teplostanski.me/fullchain.pem /etc/nginx/ssl/cert.pem && cp /etc/letsencrypt/live/api-lofi.teplostanski.me/privkey.pem /etc/nginx/ssl/key.pem && chmod 644 /etc/nginx/ssl/cert.pem && chmod 600 /etc/nginx/ssl/key.pem; fi; sleep 12h & wait $${!}; done;'"
+    networks:
+      - lofi-cat-network
+    restart: unless-stopped
+
+networks:
+  lofi-cat-network:
+    driver: bridge
