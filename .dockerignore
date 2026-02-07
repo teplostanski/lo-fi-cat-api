@@ -10,3 +10,6 @@ build.sh
 build.ps1
 songs/
 *.log
+# Certbot директории (не нужны при сборке, могут иметь проблемы с правами)
+nginx/certbot/
+nginx/ssl/
