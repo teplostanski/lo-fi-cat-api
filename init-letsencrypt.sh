@@ -27,18 +27,19 @@ if [ -d "./nginx/certbot/conf/live/$DOMAIN" ]; then
   fi
 fi
 
-# Временно останавливаем nginx
-echo "Останавливаем Nginx..."
-docker compose stop nginx || true
+# Убеждаемся что nginx запущен (нужен для webroot валидации)
+echo "Проверяем что Nginx запущен..."
+docker compose up -d nginx
+sleep 2
 
-# Получаем сертификат через standalone (так как nginx остановлен)
-echo "Получаем сертификат через certbot (standalone mode)..."
+# Получаем сертификат через webroot (использует работающий nginx)
+echo "Получаем сертификат через certbot (webroot mode)..."
 docker compose run --rm --entrypoint "\
-  certbot certonly --standalone \
+  certbot certonly --webroot \
+    --webroot-path=/var/www/certbot \
     --email $EMAIL \
     --agree-tos \
     --no-eff-email \
-    --preferred-challenges http \
     -d $DOMAIN" certbot
 
 # Функция для копирования сертификатов
